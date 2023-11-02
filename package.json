@@ -4,15 +4,22 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build",
+    "deploy": "sh deploy.sh"
   },
   "dependencies": {
-    "vue": "^3.2.13",
-    "vue-class-component": "^8.0.0-0"
+    "flowbite": "^2.0.0",
+    "flowbite-vue": "^0.1.0",
+    "teoria": "^2.5.0",
+    "tone": "^14.7.77",
+    "vue": "^3.2.13"
   },
   "devDependencies": {
     "@vue/cli-plugin-typescript": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
     "typescript": "~4.5.5"
   },
   "browserslist": [
