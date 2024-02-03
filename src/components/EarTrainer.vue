@@ -3,29 +3,32 @@
     <FwbHeading class="flex justify-center">Ear Trainer</FwbHeading>
     <div v-if="!isTraining">
       <div class="flex justify-center items-center my-1">
-        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="playRandomChord()">Play Chord</FwbButton>
-        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="replayChords()">Repeat Chord</FwbButton>
+        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="replayChords()">
+          <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+            <path fill-rule="evenodd" d="M18.5 3.1c.3.2.5.5.5.9v16a1 1 0 0 1-1.6.8L12 17V7.1l5.4-4a1 1 0 0 1 1 0ZM22 12a4 4 0 0 1-2 3.5v-7c1.2.7 2 2 2 3.5ZM10 8H4a1 1 0 0 0-1 1v6c0 .6.4 1 1 1h6V8Zm0 9H5v3c0 .6.4 1 1 1h3c.6 0 1-.4 1-1v-3Z" clip-rule="evenodd"/>
+          </svg>
+        </FwbButton>
       </div>
       <div class="my-2">
-        <FwbButton v-for="chord in chords" :key="chord" @click="checkGuess(chord)" :class="{
-          'correct-answer': (chord === correctChordNotation) && hasBeenSelectedList[chords.indexOf(chord)],
-          'wrong-answer': (chord !== correctChordNotation) && hasBeenSelectedList[chords.indexOf(chord)]
+        <FwbButton v-for="chord in chordScale" :key="chord" @click="checkGuess(chord)" :class="{
+          'correct-answer': (chord === secondChordRomanNotation) && hasBeenSelectedList[chordScale.indexOf(chord)],
+          'wrong-answer': (chord !== secondChordRomanNotation) && hasBeenSelectedList[chordScale.indexOf(chord)],
         }"
-          pill color="alternative" size="xl" class="mx-1 focus:ring-transparent">{{ chord }}</FwbButton>
+          pill color="alternative" size="xl" class="mx-1 focus:ring-transparent" :disabled="firstTry">{{ chord }}</FwbButton>
       </div>
     </div>
     <div v-else>
       <div class="flex justify-center items-center my-1">
-        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="newTonic">Change the tonic</FwbButton>
+        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="newTonicTraining">Change the tonic</FwbButton>
       </div>
       <div class="my-2">
-        <FwbButton v-for="chord in chords.slice(1)" :key="chord" @click="practiseChord(chord, -1)"
+        <FwbButton v-for="chord in chordScale.slice(1)" :key="chord" @click="practiseChord(chord, -1)"
           pill color="alternative" size="xl" class="mx-1 focus:ring-transparent">- {{ chord }}</FwbButton>
-        <FwbButton v-for="chord in chords" :key="chord" @click="practiseChord(chord, 1)"
+        <FwbButton v-for="chord in chordScale" :key="chord" @click="practiseChord(chord, 1)"
           pill color="alternative" size="xl" class="mx-1 focus:ring-transparent">{{ chord }}</FwbButton>
       </div>
     </div>
-    <FwbSelect v-model="currrentChordsOption" :options="chordOptionsModels" class="my-2"></FwbSelect>
+    <FwbSelect v-model="currrentChordsOption" :options="chordOptionsModels" class="my-2" placeholder="Please select chords option" @update:model-value="firstTry = true"/>
     <label class="flex items-center justify-center relative cursor-pointer">
       <FwbToggle v-model="isTraining" label="Test/Learn" class="my-2"></FwbToggle>
     </label>
@@ -33,115 +36,64 @@
 </template>
   
 <script setup lang="ts">
-import { FwbButton, FwbHeading, FwbSelect, FwbToggle } from 'flowbite-vue'
-import { ref, reactive, computed } from "vue";
-import * as Tone from 'tone';
-import * as teoria from 'teoria';
+import { FwbButton, FwbHeading, FwbSelect, FwbToggle } from "flowbite-vue";
+import * as Tone from "tone";
+import { computed, reactive, ref } from "vue";
+import { chordsOptions } from "@/services/settings"
+import { relativeChordMap, chromaticScaleNotes, getChordTones, notationToChord } from "@/services/theoryToFq";
 
-interface RelativeChordMap {
-  [key: string]: [string, string]
-}
-const relative_chord_map = {
-  'I': ['P1', 'M'],
-  'i': ['P1', 'm'],
-  'ii': ['M2', 'm'],
-  'ii°': ['M2', 'dim'],
-  'iii': ['M3', 'm'],
-  'III': ['M3', 'M'],
-  'bIII': ['m3', 'M'],
-  'biii': ['m3', 'm'],
-  'IV': ['P4', 'M'],
-  'iv': ['P4', 'm'],
-  'V': ['P5', 'M'],
-  'v': ['P5', 'm'],
-  'vi': ['M6', 'm'],
-  'VI': ['M6', 'M'],
-  'bVI': ['m6', 'M'],
-  'bvi': ['m6', 'm'],
-  'vii°': ['M7', 'dim'],
-  'bVII': ['m7', 'M'],
-} as RelativeChordMap;
+let firstTry = ref(true);
+const chordScale = computed(() => chordsOptions[currrentChordsOption.value]);
 
-const chromatic_scale_notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const chords = computed(() => 
-  currrentChordsOption.value ? 
-  chordsOptions[currrentChordsOption.value] : 
-  chordsOptions['major']);
-interface ChordOption {
-  [key: string]: string[]
-};
-const chordsOptions: ChordOption = {
-  'major': ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'], 
-  'minor': ['i', 'ii°', 'bIII', 'iv', 'v', 'bVI', 'bVII'],
-  'chromediants_major': ['I', 'bIII', 'III', 'bVI', 'VI'],
-  'chromediants_minor': ['i', 'biii', 'iii', 'bvi', 'vi'],
-};
-const chordOptionsKeys = Object.keys(chordsOptions);
-const chordOptionsModels = chordOptionsKeys.map(chord => {return {name: chord, value: chord}});
-const currrentChordsOption = ref();
-const tonic = ref('C');
+const chordOptionsModels = Object.keys(chordsOptions).map(
+  chord => {return {name: chord, value: chord}}
+);
+
+const currrentChordsOption = ref("major");
+const tonicNote = ref("C");
 const tonicChord = computed(() => 
-  tonic.value && chords.value ?
-  `${tonic.value}${relative_chord_map[chords.value[0]][1]}` :
-  '');
-const hasBeenSelectedList = computed(() => reactive(chords.value.map(() => false)));
-const correctChordNotation = ref('');
+  `${tonicNote.value}${relativeChordMap[chordScale.value[0]].chordQuality}`
+);
+const hasBeenSelectedList = computed(() => reactive(chordScale.value.map(() => false)));
+const secondChordRomanNotation = ref("");
 
 function newTonic() {
-  tonic.value = chromatic_scale_notes[Math.floor(Math.random() * chromatic_scale_notes.length)];
-};
-
-function playRandomChord() {
-  newTonic();
-  correctChordNotation.value = chords.value[Math.floor(Math.random() * chords.value.length)];
-  replayChords();
-};
-
-function notationToChord(notation: string){
-  let [intervalFromTonic, chordQuality] = relative_chord_map[notation];
-  const intervalTonic = teoria.note(tonic.value).interval(intervalFromTonic);
-  return intervalTonic.chord(chordQuality).name;
+  tonicNote.value = chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)];
 }
 
-const correctChord = computed(() => notationToChord(correctChordNotation.value));
+function newTonicTraining() {
+  newTonic();
+  firstTry.value = true;
+}
+
+function newChordPair() {
+  newTonic();
+  secondChordRomanNotation.value = chordScale.value[Math.floor(Math.random() * chordScale.value.length)];
+  firstTry.value = false;
+};
+
+const correctChord = computed(() => notationToChord(tonicNote, secondChordRomanNotation.value));
 
 function replayChords(chordToPlay?: string, octave?: 1 | -1) {
+  if (firstTry.value && !isTraining.value) {
+    newChordPair();
+  }
   const secondChord = chordToPlay || correctChord.value
   const chordNames = [tonicChord.value, secondChord];
-  const chordsList = chordNames.map(chord => getChordTones(chord, octave));
+  const chordsList = chordNames.map(chord => getChordTones(tonicChord, chord, octave));
   const mapped = chordsList.map((chord, id) => { return { time: `0:${id * 2}`, chord: chord } });
   playChords(mapped);
 };
 
-
 function checkGuess(userGuess: string) {
-  hasBeenSelectedList.value[chords.value.indexOf(userGuess)] = true;
-  if (userGuess === correctChordNotation.value) {
+  hasBeenSelectedList.value[chordScale.value.indexOf(userGuess)] = true;
+  if (userGuess === secondChordRomanNotation.value) {
     setTimeout(() => {
       hasBeenSelectedList.value.forEach((_, id) => hasBeenSelectedList.value[id] = false);
-      playRandomChord();
+      newChordPair();
+      replayChords();
     }, 300);
   }
-};
-
-function getChordTones(chordSymbol: string, octave?: 1 | -1): string[] {
-  let chord = teoria.chord(chordSymbol);
-  if (chordSymbol !== tonicChord.value && octave) {
-    const tonicChordObject = teoria.chord(tonicChord.value)
-    const tonicChordRoot = tonicChordObject.root;
-    if (tonicChordRoot.fq() > chord.root.fq()) {
-      if (octave === 1) {
-        chord = chord.interval('P8');
-      }
-    } else {
-      if (octave === -1) {
-        chord = chord.interval('P-8');
-      }
-    }
-  }
-  const chordNotes = chord.notes();
-  const notesStringed = chordNotes.map(note => note.toString());
-  return notesStringed;
 };
 
 let synth: Tone.PolySynth;
@@ -155,7 +107,7 @@ function playChords(chordScore: ChordScore): void {
   if (!synth) {
     synth = new Tone.PolySynth().toDestination();
   }
-  const chordDuration = '4n'
+  const chordDuration = "4n"
 
   synth.releaseAll();
   Tone.Transport.stop();
@@ -173,7 +125,7 @@ function playChords(chordScore: ChordScore): void {
 const isTraining = ref(false);
 
 function practiseChord(chord: string, octave?: -1 | 1) {
-  replayChords(notationToChord(chord), octave);
+  replayChords(notationToChord(tonicNote, chord), octave);
 }
 </script>
 
