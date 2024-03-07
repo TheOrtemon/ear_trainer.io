@@ -5,12 +5,5 @@
 </template>
 
 <script setup lang="ts">
-import EarTrainer from './components/EarTrainer.vue';
-import './assets/tailwind.css'
-
-
+import EarTrainer from './components/EarTrainer.vue'
 </script>
-
-<style>
-
-</style>

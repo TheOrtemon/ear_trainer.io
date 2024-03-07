@@ -1,134 +1,213 @@
 <template>
   <div>
-    <FwbHeading class="flex justify-center">Ear Trainer</FwbHeading>
+    <h1 class="flex justify-center scroll-m-20 text-6xl font-bold tracking-tight">Ear Trainer</h1>
     <div v-if="!isTraining">
       <div class="flex justify-center items-center my-1">
-        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="replayChords()">
-          <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
-            <path fill-rule="evenodd" d="M18.5 3.1c.3.2.5.5.5.9v16a1 1 0 0 1-1.6.8L12 17V7.1l5.4-4a1 1 0 0 1 1 0ZM22 12a4 4 0 0 1-2 3.5v-7c1.2.7 2 2 2 3.5ZM10 8H4a1 1 0 0 0-1 1v6c0 .6.4 1 1 1h6V8Zm0 9H5v3c0 .6.4 1 1 1h3c.6 0 1-.4 1-1v-3Z" clip-rule="evenodd"/>
-          </svg>
-        </FwbButton>
+        <Button variant="outline" class="my-1 focus:ring-transparent" @click="replayChords()">
+          <SoundIcon />
+        </Button>
       </div>
       <div class="my-2">
-        <FwbButton v-for="chord in chordScale" :key="chord" @click="checkGuess(chord)" :class="{
-          'correct-answer': (chord === secondChordRomanNotation) && hasBeenSelectedList[chordScale.indexOf(chord)],
-          'wrong-answer': (chord !== secondChordRomanNotation) && hasBeenSelectedList[chordScale.indexOf(chord)],
-        }"
-          pill color="alternative" size="xl" class="mx-1 focus:ring-transparent" :disabled="firstTry">{{ chord }}</FwbButton>
+        <Button
+          v-for="chord in chordScale"
+          :key="chord"
+          :class="{
+            'correct-answer': chord === secondChordRomanNotation && hasBeenSelected.has(chord),
+            'wrong-answer': chord !== secondChordRomanNotation && hasBeenSelected.has(chord),
+          }"
+          variant="secondary"
+          rounded="yes"
+          size="m"
+          class="mx-1 focus:ring-transparent"
+          :disabled="firstTry"
+          @click="checkGuess(chord)"
+          >{{ chord }}</Button
+        >
       </div>
     </div>
     <div v-else>
       <div class="flex justify-center items-center my-1">
-        <FwbButton color="light" class="mx-1 focus:ring-transparent" @click="newTonicTraining">Change the tonic</FwbButton>
+        <Button variant="outline" class="mx-1 focus:ring-transparent" @click="newTonicTraining"
+          >Change the tonic</Button
+        >
       </div>
       <div class="my-2">
-        <FwbButton v-for="chord in chordScale.slice(1)" :key="chord" @click="practiseChord(chord, -1)"
-          pill color="alternative" size="xl" class="mx-1 focus:ring-transparent">- {{ chord }}</FwbButton>
-        <FwbButton v-for="chord in chordScale" :key="chord" @click="practiseChord(chord, 1)"
-          pill color="alternative" size="xl" class="mx-1 focus:ring-transparent">{{ chord }}</FwbButton>
+        <Button
+          v-for="chord in chordScale.slice(1)"
+          :key="chord"
+          variant="secondary"
+          rounded="yes"
+          size="m"
+          class="mx-1 focus:ring-transparent"
+          @click="practiseChord(chord, -1)"
+          >- {{ chord }}</Button
+        >
+        <Button
+          v-for="chord in chordScale"
+          :key="chord"
+          variant="secondary"
+          rounded="yes"
+          size="m"
+          class="mx-1 focus:ring-transparent"
+          @click="practiseChord(chord, 1)"
+          >{{ chord }}</Button
+        >
       </div>
     </div>
-    <FwbSelect v-model="currrentChordsOption" :options="chordOptionsModels" class="my-2" placeholder="Please select chords option" @update:model-value="firstTry = true"/>
-    <label class="flex items-center justify-center relative cursor-pointer">
-      <FwbToggle v-model="isTraining" label="Test/Learn" class="my-2"></FwbToggle>
-    </label>
+    <Select v-model="currrentChordsOption" @update:model-value="firstTry = true">
+      <SelectTrigger class="my-2">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectLabel>Chords options</SelectLabel>
+          <SelectItem v-for="option in Object.keys(chordsOptions)" :key="option" :value="option">{{
+            option
+          }}</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+    <Select
+      v-model="currentInstrumentName"
+      @update:model-value="
+        loadedInstruments[currentInstrumentName] = createInstrument(currentInstrumentName)
+      "
+    >
+      <SelectTrigger class="my-2">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectLabel>Instrument</SelectLabel>
+          <SelectItem v-for="option in extendedInstrumentList" :key="option" :value="option">{{
+            option
+          }}</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+    <div class="flex items-center justify-center space-x-2">
+      <Switch id="is-training" v-model:checked="isTraining" />
+      <Label for="is-training">Test/Learn</Label>
+    </div>
   </div>
+
+  <AlertDialog v-model:open="needToLoadInstrument">
+    <AlertDialogContent class="w-fit">
+      <AlertDialogHeader>
+        <AlertDialogTitle class="flex items-center">
+          <Spinner class="mx-2" />
+          Loading...
+        </AlertDialogTitle>
+      </AlertDialogHeader>
+    </AlertDialogContent>
+  </AlertDialog>
 </template>
-  
+
 <script setup lang="ts">
-import { FwbButton, FwbHeading, FwbSelect, FwbToggle } from "flowbite-vue";
-import * as Tone from "tone";
-import { computed, reactive, ref } from "vue";
-import { chordsOptions } from "@/services/settings"
-import { relativeChordMap, chromaticScaleNotes, getChordTones, notationToChord } from "@/services/theoryToFq";
+import { Button } from './ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectLabel,
+} from './ui/select'
+import { Switch } from './ui/switch'
+import { Label } from './ui/label'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import Spinner from '@/components/ui/Spinner.vue'
+import SoundIcon from './icons/SoundIcon.vue'
+import { computed, ref } from 'vue'
+import { chordsOptions } from '@/services/settings'
+import {
+  relativeChordMap,
+  chromaticScaleNotes,
+  getChordTones,
+  notationToChord,
+} from '@/services/theoryToFq'
+import {
+  playChords,
+  createInstrument as _createInstrument,
+  type InstrumentMap,
+  type Instrument,
+} from '@/services/fqToSound'
+import { instrumentList } from '@/services/Tonejs-Instruments'
 
-let firstTry = ref(true);
-const chordScale = computed(() => chordsOptions[currrentChordsOption.value]);
+const extendedInstrumentList = instrumentList.concat(['synth'])
+let loadedInstruments: InstrumentMap = {}
+const currentInstrumentName = ref('synth')
 
-const chordOptionsModels = Object.keys(chordsOptions).map(
-  chord => {return {name: chord, value: chord}}
-);
+const currrentChordsOption = ref('major')
+const tonicNote = ref('C')
+const tonicChord = computed(
+  () => `${tonicNote.value}${relativeChordMap[chordScale.value[0]].chordQuality}`,
+)
+const secondChordRomanNotation = ref('')
+const correctChord = computed(() => notationToChord(tonicNote, secondChordRomanNotation.value))
 
-const currrentChordsOption = ref("major");
-const tonicNote = ref("C");
-const tonicChord = computed(() => 
-  `${tonicNote.value}${relativeChordMap[chordScale.value[0]].chordQuality}`
-);
-const hasBeenSelectedList = computed(() => reactive(chordScale.value.map(() => false)));
-const secondChordRomanNotation = ref("");
+const chordScale = computed(() => chordsOptions[currrentChordsOption.value])
+
+const hasBeenSelected = ref(new Set())
+
+const firstTry = ref(true)
+const isTraining = ref(false)
+const needToLoadInstrument = ref(false)
 
 function newTonic() {
-  tonicNote.value = chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)];
+  tonicNote.value = chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)]
 }
 
 function newTonicTraining() {
-  newTonic();
-  firstTry.value = true;
+  newTonic()
+  firstTry.value = true
 }
 
 function newChordPair() {
-  newTonic();
-  secondChordRomanNotation.value = chordScale.value[Math.floor(Math.random() * chordScale.value.length)];
-  firstTry.value = false;
-};
+  newTonic()
+  secondChordRomanNotation.value =
+    chordScale.value[Math.floor(Math.random() * chordScale.value.length)]
+  firstTry.value = false
+}
 
-const correctChord = computed(() => notationToChord(tonicNote, secondChordRomanNotation.value));
-
-function replayChords(chordToPlay?: string, octave?: 1 | -1) {
+function replayChords(chordToPlay?: string, octave?: 1 | -1): void {
   if (firstTry.value && !isTraining.value) {
-    newChordPair();
+    newChordPair()
   }
   const secondChord = chordToPlay || correctChord.value
-  const chordNames = [tonicChord.value, secondChord];
-  const chordsList = chordNames.map(chord => getChordTones(tonicChord, chord, octave));
-  const mapped = chordsList.map((chord, id) => { return { time: `0:${id * 2}`, chord: chord } });
-  playChords(mapped);
-};
+  const chordNames = [tonicChord.value, secondChord]
+  const chordsList = chordNames.map((chord) => getChordTones(tonicChord, chord, octave))
+  const mapped = chordsList.map((chord, id) => {
+    return { time: `0:${id * 2}`, chord: chord }
+  })
+  playChords(mapped, currentInstrumentName, loadedInstruments, needToLoadInstrument)
+}
 
 function checkGuess(userGuess: string) {
-  hasBeenSelectedList.value[chordScale.value.indexOf(userGuess)] = true;
+  hasBeenSelected.value.add(userGuess)
   if (userGuess === secondChordRomanNotation.value) {
     setTimeout(() => {
-      hasBeenSelectedList.value.forEach((_, id) => hasBeenSelectedList.value[id] = false);
-      newChordPair();
-      replayChords();
-    }, 300);
+      hasBeenSelected.value.clear()
+      newChordPair()
+      replayChords()
+    }, 300)
   }
-};
-
-let synth: Tone.PolySynth;
-type ChordScore = Array<{ time: string, chord: Array<string>}>
-
-function playChords(chordScore: ChordScore): void {
-  if (Tone.context.state !== "running") {
-    Tone.context.resume();
-    Tone.start();
-  }
-  if (!synth) {
-    synth = new Tone.PolySynth().toDestination();
-  }
-  const chordDuration = "4n"
-
-  synth.releaseAll();
-  Tone.Transport.stop();
-  Tone.Transport.cancel();
-  const part = new Tone.Part((time, value) => {
-    synth.triggerAttackRelease(value.chord, chordDuration, time);
-  }, chordScore);
-  part.stop();
-  Tone.start();
-  part.start(0);
-  Tone.Transport.position = 0;
-  Tone.Transport.start();
-};
-
-const isTraining = ref(false);
+}
 
 function practiseChord(chord: string, octave?: -1 | 1) {
-  replayChords(notationToChord(tonicNote, chord), octave);
+  replayChords(notationToChord(tonicNote, chord), octave)
+}
+
+function createInstrument(instrumentName: string): Instrument {
+  return _createInstrument(instrumentName, needToLoadInstrument)
 }
 </script>
-
 
 <style scoped>
 .correct-answer {
