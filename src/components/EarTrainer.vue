@@ -8,50 +8,37 @@
         </Button>
       </div>
       <div class="my-2">
-        <Button
+        <ChordButton
           v-for="chord in chordScale"
           :key="chord"
           :class="{
             'correct-answer': chord === secondChordRomanNotation && hasBeenSelected.has(chord),
             'wrong-answer': chord !== secondChordRomanNotation && hasBeenSelected.has(chord),
           }"
-          variant="secondary"
-          rounded="yes"
-          size="m"
-          class="mx-1 focus:ring-transparent"
           :disabled="firstTry"
           @click="checkGuess(chord)"
-          >{{ chord }}</Button
         >
+          {{ chord }}
+        </ChordButton>
       </div>
     </div>
     <div v-else>
       <div class="flex justify-center items-center my-1">
-        <Button variant="outline" class="mx-1 focus:ring-transparent" @click="newTonicTraining"
-          >Change the tonic</Button
-        >
+        <Button variant="outline" class="mx-1 focus:ring-transparent" @click="newTonicTraining">
+          Change the tonic
+        </Button>
       </div>
       <div class="my-2">
-        <Button
+        <ChordButton
           v-for="chord in chordScale.slice(1)"
           :key="chord"
-          variant="secondary"
-          rounded="yes"
-          size="m"
-          class="mx-1 focus:ring-transparent"
           @click="practiseChord(chord, -1)"
-          >- {{ chord }}</Button
         >
-        <Button
-          v-for="chord in chordScale"
-          :key="chord"
-          variant="secondary"
-          rounded="yes"
-          size="m"
-          class="mx-1 focus:ring-transparent"
-          @click="practiseChord(chord, 1)"
-          >{{ chord }}</Button
-        >
+          - {{ chord }}
+        </ChordButton>
+        <ChordButton v-for="chord in chordScale" :key="chord" @click="practiseChord(chord, 1)">
+          {{ chord }}
+        </ChordButton>
       </div>
     </div>
     <Select v-model="currrentChordsOption" @update:model-value="firstTry = true">
@@ -67,12 +54,7 @@
         </SelectGroup>
       </SelectContent>
     </Select>
-    <Select
-      v-model="currentInstrumentName"
-      @update:model-value="
-        loadedInstruments[currentInstrumentName] = createInstrument(currentInstrumentName)
-      "
-    >
+    <Select v-model="currentInstrumentName">
       <SelectTrigger class="my-2">
         <SelectValue />
       </SelectTrigger>
@@ -91,20 +73,13 @@
     </div>
   </div>
 
-  <AlertDialog v-model:open="needToLoadInstrument">
-    <AlertDialogContent class="w-fit">
-      <AlertDialogHeader>
-        <AlertDialogTitle class="flex items-center">
-          <Spinner class="mx-2" />
-          Loading...
-        </AlertDialogTitle>
-      </AlertDialogHeader>
-    </AlertDialogContent>
-  </AlertDialog>
+  <LoadingBox v-model:open="isLoading" />
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { Button } from './ui/button'
+import ChordButton from './ui/ChordButton.vue'
 import {
   Select,
   SelectContent,
@@ -116,15 +91,8 @@ import {
 } from './ui/select'
 import { Switch } from './ui/switch'
 import { Label } from './ui/label'
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import Spinner from '@/components/ui/Spinner.vue'
 import SoundIcon from './icons/SoundIcon.vue'
-import { computed, ref } from 'vue'
+import LoadingBox from './ui/LoadingBox.vue'
 import { chordsOptions } from '@/services/settings'
 import {
   relativeChordMap,
@@ -132,16 +100,10 @@ import {
   getChordTones,
   notationToChord,
 } from '@/services/theoryToFq'
-import {
-  playChords,
-  createInstrument as _createInstrument,
-  type InstrumentMap,
-  type Instrument,
-} from '@/services/fqToSound'
+import { playChords, createInstrument, loadedInstruments } from '@/services/fqToSound'
 import { instrumentList } from '@/services/Tonejs-Instruments'
 
 const extendedInstrumentList = instrumentList.concat(['synth'])
-let loadedInstruments: InstrumentMap = {}
 const currentInstrumentName = ref('synth')
 
 const currrentChordsOption = ref('major')
@@ -158,7 +120,7 @@ const hasBeenSelected = ref(new Set())
 
 const firstTry = ref(true)
 const isTraining = ref(false)
-const needToLoadInstrument = ref(false)
+const isLoading = ref(false)
 
 function newTonic() {
   tonicNote.value = chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)]
@@ -186,7 +148,7 @@ function replayChords(chordToPlay?: string, octave?: 1 | -1): void {
   const mapped = chordsList.map((chord, id) => {
     return { time: `0:${id * 2}`, chord: chord }
   })
-  playChords(mapped, currentInstrumentName, loadedInstruments, needToLoadInstrument)
+  playChords(mapped, currentInstrumentName.value)
 }
 
 function checkGuess(userGuess: string) {
@@ -204,9 +166,15 @@ function practiseChord(chord: string, octave?: -1 | 1) {
   replayChords(notationToChord(tonicNote, chord), octave)
 }
 
-function createInstrument(instrumentName: string): Instrument {
-  return _createInstrument(instrumentName, needToLoadInstrument)
+async function onInstrumentChange(instrumentName: string) {
+  if (!loadedInstruments[instrumentName]) {
+    isLoading.value = true
+    loadedInstruments[instrumentName] = await createInstrument(instrumentName)
+    isLoading.value = false
+  }
 }
+
+watch(currentInstrumentName, onInstrumentChange)
 </script>
 
 <style scoped>

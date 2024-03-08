@@ -26,6 +26,7 @@ export const relativeChordMap: RelativeChordMap = {
   bIIImaj7: { interval: 'm3', chordQuality: 'maj7' },
   biii: { interval: 'm3', chordQuality: 'm' },
   IVmaj7: { interval: 'P4', chordQuality: 'maj7' },
+  IV: { interval: 'P4', chordQuality: 'M' },
   iv: { interval: 'P4', chordQuality: 'm' },
   ivm7: { interval: 'P4', chordQuality: 'm7' },
   V: { interval: 'P5', chordQuality: 'M' },

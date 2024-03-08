@@ -1,8 +1,4 @@
-interface ChordsOptions {
-  [key: string]: string[]
-}
-
-export const chordsOptions: ChordsOptions = {
+export const chordsOptions: Record<string, string[]> = {
   major: ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'],
   majorSevenths: ['Imaj7', 'iim7', 'iiim7', 'IVmaj7', 'V7', 'vim7', 'viiø7'],
   minor: ['i', 'ii°', 'bIII', 'iv', 'v', 'bVI', 'bVII'],

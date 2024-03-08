@@ -1,26 +1,24 @@
 import { SampleLibrary } from '@/services/Tonejs-Instruments'
 import { Transport, Part, start, context, Sampler, PolySynth } from 'tone'
-import type { Ref } from 'vue'
 
-type ChordScore = Array<{ time: string; chord: Array<string> }>
-export type Instrument = PolySynth | Sampler
-export type InstrumentMap = { [key: string]: Instrument }
+type PartElement = { time: string; chord: Array<string> }
+type Instrument = PolySynth | Sampler
+type InstrumentMap = Record<string, Instrument>
 
-export async function playChords(
-  chordScore: ChordScore,
-  instrumentName: Ref<string>,
-  instruments: InstrumentMap,
-  needToLoadInstrument: Ref<boolean>,
-) {
+export const loadedInstruments: InstrumentMap = {}
+
+const sampleLibrary = new SampleLibrary()
+
+export async function playChords(chordScore: PartElement[], instrumentName: string) {
   if (context.state !== 'running') {
     context.resume()
     start()
   }
-  let instrument: Instrument | undefined = instruments[instrumentName.value]
+  let instrument: Instrument | undefined = loadedInstruments[instrumentName]
 
   if (!instrument) {
-    instrument = createInstrument(instrumentName.value, needToLoadInstrument)
-    instruments[instrumentName.value] = instrument
+    instrument = createSynth()
+    loadedInstruments[instrumentName] = instrument
   }
 
   const chordDuration = '4n'
@@ -29,6 +27,9 @@ export async function playChords(
   Transport.stop()
   Transport.cancel()
   const part = new Part((time, value) => {
+    if (instrument === undefined) {
+      throw new Error()
+    }
     instrument.triggerAttackRelease(value.chord, chordDuration, time)
   }, chordScore)
   part.stop()
@@ -38,20 +39,26 @@ export async function playChords(
   Transport.start()
 }
 
-export function createInstrument(
-  instrumentName: string,
-  needToLoadInstrument: Ref<boolean>,
-): Instrument {
-  let instrument: Instrument
+export async function createInstrument(instrumentName: string): Promise<Instrument> {
   if (instrumentName == 'synth') {
-    instrument = new PolySynth()
-  } else {
-    needToLoadInstrument.value = true
-    const sampleLibrary = new SampleLibrary()
-    instrument = sampleLibrary.load({
-      list: instrumentName,
-      onload: () => (needToLoadInstrument.value = false),
-    })
+    return createSynth()
   }
-  return instrument.toDestination()
+
+  return await loadSampler(instrumentName)
+}
+
+function createSynth(): PolySynth {
+  return new PolySynth().toDestination()
+}
+
+function loadSampler(instrumentName: string): Promise<Sampler> {
+  return new Promise((resolve) => {
+    const sampler: Sampler = sampleLibrary.load({
+      list: instrumentName,
+      onload: () => {
+        sampler.toDestination()
+        resolve(sampler)
+      },
+    })
+  })
 }
