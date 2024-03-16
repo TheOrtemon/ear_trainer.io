@@ -4,21 +4,23 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
 } from '@/components/ui/alert-dialog'
 import Spinner from '@/components/ui/Spinner.vue'
 </script>
 
 <template>
-  <div area-label="Loading box">
-    <AlertDialog>
-      <AlertDialogContent class="w-fit">
-        <AlertDialogHeader>
-          <AlertDialogTitle class="flex items-center">
-            <Spinner class="mx-2" />
-            Loading...
-          </AlertDialogTitle>
-        </AlertDialogHeader>
-      </AlertDialogContent>
-    </AlertDialog>
-  </div>
+  <AlertDialog>
+    <AlertDialogContent class="w-fit">
+      <AlertDialogHeader>
+        <AlertDialogTitle class="flex items-center">
+          <Spinner class="mx-2" />
+          Loading...
+        </AlertDialogTitle>
+        <AlertDialogDescription class="mt-1">
+          The sampled instrument is being loaded to your local storage.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+    </AlertDialogContent>
+  </AlertDialog>
 </template>
