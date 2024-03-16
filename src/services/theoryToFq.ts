@@ -1,5 +1,6 @@
-import { note as Note, chord as Chord } from 'teoria'
-import type { ComputedRef, Ref } from 'vue'
+import { note as newNote, chord as newChord, interval as newInterval } from 'teoria'
+import type { Chord } from 'teoria'
+import type { Ref } from 'vue'
 
 interface ChordInterval {
   interval: string
@@ -8,6 +9,29 @@ interface ChordInterval {
 
 interface RelativeChordMap {
   [key: string]: ChordInterval
+}
+
+// stolen from stackoverflow
+export function inverseChord(chord: Chord, n: number) {
+  const copiedChord = newChord(chord.name)
+  copiedChord.root = chord.root
+  let voicing = copiedChord.voicing()
+  if (n < 0) {
+    voicing = voicing.reverse()
+  }
+
+  const j = Math.abs(n)
+  for (let i = 0; i < j; i++) {
+    const index = i % voicing.length
+    if (n > 0) {
+      voicing[index] = voicing[index].add(newInterval('P8'))
+    } else {
+      voicing[index] = voicing[index].add(newInterval('P-8'))
+    }
+  }
+  copiedChord._voicing = voicing
+
+  return copiedChord
 }
 
 export const relativeChordMap: RelativeChordMap = {
@@ -47,32 +71,26 @@ export const relativeChordMap: RelativeChordMap = {
 
 export const chromaticScaleNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
-export function getChordTones(
-  tonicChord: ComputedRef<string>,
-  chordSymbol: string,
-  octave?: 1 | -1,
-): string[] {
-  let chord = Chord(chordSymbol)
-  if (chordSymbol !== tonicChord.value && octave) {
-    const tonicChordObject = Chord(tonicChord.value)
-    const tonicChordRoot = tonicChordObject.root
-    if (tonicChordRoot.fq() > chord.root.fq()) {
-      if (octave === 1) {
-        chord = chord.interval('P8')
-      }
-    } else {
-      if (octave === -1) {
-        chord = chord.interval('P-8')
-      }
-    }
+export function getChord(chordSymbol: string): Chord {
+  return newChord(chordSymbol)
+}
+
+export function transposeChord(tonicChord: Chord, secondChord: Chord): Chord {
+  const tonicNote = tonicChord.root
+  if (tonicNote.fq() < secondChord.root.fq()) {
+    secondChord = secondChord.interval('P-8')
   }
+  return secondChord
+}
+
+export function getChordTones(chord: Chord): string[] {
   const chordNotes = chord.notes()
-  const notesStringed = chordNotes.map((note) => note.toString())
-  return notesStringed
+  const notesStringified = chordNotes.map((note) => note.toString())
+  return notesStringified
 }
 
 export function notationToChord(tonic: Ref<string>, romanNotation: string) {
   const { interval, chordQuality } = relativeChordMap[romanNotation]
-  const intervalTonic = Note(tonic.value).interval(interval)
+  const intervalTonic = newNote(tonic.value).interval(interval)
   return intervalTonic.chord(chordQuality).name
 }

@@ -9,14 +9,16 @@ import Spinner from '@/components/ui/Spinner.vue'
 </script>
 
 <template>
-  <AlertDialog>
-    <AlertDialogContent class="w-fit">
-      <AlertDialogHeader>
-        <AlertDialogTitle class="flex items-center">
-          <Spinner class="mx-2" />
-          Loading...
-        </AlertDialogTitle>
-      </AlertDialogHeader>
-    </AlertDialogContent>
-  </AlertDialog>
+  <div area-label="Loading box">
+    <AlertDialog>
+      <AlertDialogContent class="w-fit">
+        <AlertDialogHeader>
+          <AlertDialogTitle class="flex items-center">
+            <Spinner class="mx-2" />
+            Loading...
+          </AlertDialogTitle>
+        </AlertDialogHeader>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>
 </template>

@@ -3,7 +3,7 @@
     <h1 class="flex justify-center scroll-m-20 text-6xl font-bold tracking-tight">Ear Trainer</h1>
     <div v-if="!isTraining">
       <div class="flex justify-center items-center my-1">
-        <Button variant="outline" class="my-1 focus:ring-transparent" @click="replayChords()">
+        <Button variant="outline" class="focus:ring-transparent" @click="replayChords()">
           <SoundIcon />
         </Button>
       </div>
@@ -24,19 +24,12 @@
     </div>
     <div v-else>
       <div class="flex justify-center items-center my-1">
-        <Button variant="outline" class="mx-1 focus:ring-transparent" @click="newTonicTraining">
+        <Button variant="outline" class="focus:ring-transparent" @click="newTonicTraining">
           Change the tonic
         </Button>
       </div>
       <div class="my-2">
-        <ChordButton
-          v-for="chord in chordScale.slice(1)"
-          :key="chord"
-          @click="practiseChord(chord, -1)"
-        >
-          - {{ chord }}
-        </ChordButton>
-        <ChordButton v-for="chord in chordScale" :key="chord" @click="practiseChord(chord, 1)">
+        <ChordButton v-for="chord in chordScale" :key="chord" @click="practiseChord(chord)">
           {{ chord }}
         </ChordButton>
       </div>
@@ -48,9 +41,9 @@
       <SelectContent>
         <SelectGroup>
           <SelectLabel>Chords options</SelectLabel>
-          <SelectItem v-for="option in Object.keys(chordsOptions)" :key="option" :value="option">{{
-            option
-          }}</SelectItem>
+          <SelectItem v-for="option in Object.keys(chordsOptions)" :key="option" :value="option">
+            {{ option }}
+          </SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>
@@ -61,15 +54,32 @@
       <SelectContent>
         <SelectGroup>
           <SelectLabel>Instrument</SelectLabel>
-          <SelectItem v-for="option in extendedInstrumentList" :key="option" :value="option">{{
-            option
-          }}</SelectItem>
+          <SelectItem v-for="option in extendedInstrumentList" :key="option" :value="option">
+            {{ option }}
+          </SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>
-    <div class="flex items-center justify-center space-x-2">
+    <div class="flex items-center justify-center space-x-2 my-2">
       <Switch id="is-training" v-model:checked="isTraining" />
       <Label for="is-training">Test/Learn</Label>
+    </div>
+    <div v-if="!isTraining" class="flex items-center justify-center space-x-2 my-2">
+      <Switch id="is-training" v-model:checked="isHardDifficulty" />
+      <Label for="is-training">Easy/Hard</Label>
+    </div>
+    <div v-if="isTraining" class="my-2">
+      <h2 class="text-lg text-center font-semibold my-1">Choose inversion</h2>
+      <div class="flex justify-center items-center">
+        <Button
+          v-for="option in inversions"
+          :key="option"
+          class="mx-1"
+          :class="{ 'bg-green-400': option == inversion }"
+          @click="inversion = option"
+          >{{ option }}</Button
+        >
+      </div>
     </div>
   </div>
 
@@ -99,20 +109,29 @@ import {
   chromaticScaleNotes,
   getChordTones,
   notationToChord,
+  getChord,
+  inverseChord,
+  transposeChord,
 } from '@/services/theoryToFq'
 import { playChords, createInstrument, loadedInstruments } from '@/services/fqToSound'
 import { instrumentList } from '@/services/Tonejs-Instruments'
+import { chord as newChord } from 'teoria'
 
 const extendedInstrumentList = instrumentList.concat(['synth'])
 const currentInstrumentName = ref('synth')
 
 const currrentChordsOption = ref('major')
 const tonicNote = ref('C')
-const tonicChord = computed(
+const tonicChordName = computed(
   () => `${tonicNote.value}${relativeChordMap[chordScale.value[0]].chordQuality}`,
 )
+const tonicChord = computed(() => newChord(tonicChordName.value))
+
 const secondChordRomanNotation = ref('')
-const correctChord = computed(() => notationToChord(tonicNote, secondChordRomanNotation.value))
+const correctChordName = computed(() => notationToChord(tonicNote, secondChordRomanNotation.value))
+
+const inversion = ref(0)
+const inversions = [0, 1, 2, 3]
 
 const chordScale = computed(() => chordsOptions[currrentChordsOption.value])
 
@@ -121,6 +140,7 @@ const hasBeenSelected = ref(new Set())
 const firstTry = ref(true)
 const isTraining = ref(false)
 const isLoading = ref(false)
+const isHardDifficulty = ref(false)
 
 function newTonic() {
   tonicNote.value = chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)]
@@ -132,20 +152,28 @@ function newTonicTraining() {
 }
 
 function newChordPair() {
+  if (isHardDifficulty.value) {
+    inversion.value = Math.floor(Math.random() * 4)
+  } else {
+    inversion.value = Math.random() > 0.5 ? 0 : 3
+  }
   newTonic()
   secondChordRomanNotation.value =
     chordScale.value[Math.floor(Math.random() * chordScale.value.length)]
   firstTry.value = false
 }
 
-function replayChords(chordToPlay?: string, octave?: 1 | -1): void {
+function replayChords(chordToPlay?: string): void {
   if (firstTry.value && !isTraining.value) {
     newChordPair()
   }
-  const secondChord = chordToPlay || correctChord.value
-  const chordNames = [tonicChord.value, secondChord]
-  const chordsList = chordNames.map((chord) => getChordTones(tonicChord, chord, octave))
-  const mapped = chordsList.map((chord, id) => {
+  const secondChordName = chordToPlay || correctChordName.value
+  const secondChord = getChord(secondChordName)
+  const transposedSecondChord = transposeChord(tonicChord.value, secondChord)
+  const inversedSecondChord = inverseChord(transposedSecondChord, inversion.value)
+  const chordsToPlay = [tonicChord.value, inversedSecondChord]
+  const chordArpeggios = chordsToPlay.map(getChordTones)
+  const mapped = chordArpeggios.map((chord, id) => {
     return { time: `0:${id * 2}`, chord: chord }
   })
   playChords(mapped, currentInstrumentName.value)
@@ -162,8 +190,8 @@ function checkGuess(userGuess: string) {
   }
 }
 
-function practiseChord(chord: string, octave?: -1 | 1) {
-  replayChords(notationToChord(tonicNote, chord), octave)
+function practiseChord(chord: string) {
+  replayChords(notationToChord(tonicNote, chord))
 }
 
 async function onInstrumentChange(instrumentName: string) {
@@ -175,6 +203,7 @@ async function onInstrumentChange(instrumentName: string) {
 }
 
 watch(currentInstrumentName, onInstrumentChange)
+watch(isHardDifficulty, () => (inversion.value = 0))
 </script>
 
 <style scoped>
@@ -186,12 +215,12 @@ watch(currentInstrumentName, onInstrumentChange)
   animation: glow-correct 0.3s ease-in-out alternate;
 }
 .correct-answer:hover {
-  background-color: #22c55e;
+  background-color: #4ade80;
   color: white;
 }
 @keyframes correct-answer-anim {
   0% {
-    background-color: #22c55e;
+    background-color: #4ade80;
   }
 
   50% {
@@ -199,7 +228,7 @@ watch(currentInstrumentName, onInstrumentChange)
   }
 
   100% {
-    background-color: #22c55e;
+    background-color: #4ade80;
   }
 }
 .wrong-answer {

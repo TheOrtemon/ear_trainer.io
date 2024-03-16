@@ -8,6 +8,7 @@ import autoprefixer from 'autoprefixer'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: 'ear_trainer.io/',
   css: {
     postcss: {
       plugins: [tailwind(), autoprefixer()],
