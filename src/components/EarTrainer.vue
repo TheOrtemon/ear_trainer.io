@@ -103,7 +103,7 @@ import { Switch } from './ui/switch'
 import { Label } from './ui/label'
 import SoundIcon from './icons/SoundIcon.vue'
 import LoadingBox from './ui/LoadingBox.vue'
-import { chordsOptions } from '@/services/settings'
+import { chordsOptions, instrumentList } from '@/services/settings'
 import {
   relativeChordMap,
   chromaticScaleNotes,
@@ -114,7 +114,6 @@ import {
   transposeChord,
 } from '@/services/theoryToFq'
 import { playChords, createInstrument, loadedInstruments } from '@/services/fqToSound'
-import { instrumentList } from '@/services/Tonejs-Instruments'
 import { chord as newChord } from 'teoria'
 
 const extendedInstrumentList = instrumentList.concat(['synth'])

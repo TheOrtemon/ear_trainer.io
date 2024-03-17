@@ -1,15 +1,47 @@
-import { SampleLibrary } from '@/services/Tonejs-Instruments'
-import { Transport, Part, start, context, Sampler, PolySynth } from 'tone'
+import type { PolySynth, BaseContext, Transport, Part, Sampler } from 'tone'
+import type { SampleLibrary } from '@/services/Tonejs-Instruments'
 
 type PartElement = { time: string; chord: Array<string> }
 type Instrument = PolySynth | Sampler
 type InstrumentMap = Record<string, Instrument>
 
+interface ToneImports {
+  context: BaseContext
+  start: () => Promise<void>
+  PolySynth: typeof PolySynth
+  Transport: typeof Transport
+  Part: typeof Part
+  Sampler: typeof Sampler
+  SampleLibrary: typeof SampleLibrary
+}
+
+interface SampleLibraryContainer {
+  SampleLibrary?: SampleLibrary
+}
+
+let toneImportsContainer: ToneImports | undefined
+const samplerLibraryContainer: SampleLibraryContainer = {}
 export const loadedInstruments: InstrumentMap = {}
 
-const sampleLibrary = new SampleLibrary()
+async function getToneLib(): Promise<ToneImports> {
+  if (toneImportsContainer === undefined) {
+    const { context, start, PolySynth, Transport, Part, Sampler } = await import('tone')
+    const { SampleLibrary } = await import('@/services/Tonejs-Instruments')
+    toneImportsContainer = {
+      context,
+      start,
+      PolySynth,
+      Transport,
+      Part,
+      Sampler,
+      SampleLibrary,
+    }
+  }
+  return toneImportsContainer
+}
 
 export async function playChords(chordScore: PartElement[], instrumentName: string) {
+  const { context, start, Transport, Part } = await import('tone')
   if (context.state !== 'running') {
     context.resume()
     start()
@@ -17,7 +49,7 @@ export async function playChords(chordScore: PartElement[], instrumentName: stri
   let instrument: Instrument | undefined = loadedInstruments[instrumentName]
 
   if (!instrument) {
-    instrument = createSynth()
+    instrument = await createSynth()
     loadedInstruments[instrumentName] = instrument
   }
 
@@ -41,17 +73,23 @@ export async function playChords(chordScore: PartElement[], instrumentName: stri
 
 export async function createInstrument(instrumentName: string): Promise<Instrument> {
   if (instrumentName == 'synth') {
-    return createSynth()
+    return await createSynth()
   }
 
   return await loadSampler(instrumentName)
 }
 
-function createSynth(): PolySynth {
+async function createSynth(): Promise<PolySynth> {
+  const { PolySynth } = await getToneLib()
   return new PolySynth().toDestination()
 }
 
-function loadSampler(instrumentName: string): Promise<Sampler> {
+async function loadSampler(instrumentName: string): Promise<Sampler> {
+  if (samplerLibraryContainer.SampleLibrary === undefined) {
+    const { SampleLibrary } = await getToneLib()
+    samplerLibraryContainer.SampleLibrary = new SampleLibrary()
+  }
+  const sampleLibrary = samplerLibraryContainer.SampleLibrary
   return new Promise((resolve) => {
     const sampler: Sampler = sampleLibrary.load({
       list: instrumentName,

@@ -6,3 +6,26 @@ export const chordsOptions: Record<string, string[]> = {
   chromediants_major: ['I', 'bIII', 'III', 'bVI', 'VI'],
   chromediants_minor: ['i', 'biii', 'iii', 'bvi', 'vi'],
 }
+
+export const instrumentList = [
+  'bass-electric',
+  'bassoon',
+  'cello',
+  'clarinet',
+  'contrabass',
+  'flute',
+  'french-horn',
+  'guitar-acoustic',
+  'guitar-electric',
+  'guitar-nylon',
+  'harmonium',
+  'harp',
+  'organ',
+  'piano',
+  'saxophone',
+  'trombone',
+  'trumpet',
+  'tuba',
+  'violin',
+  'xylophone',
+]

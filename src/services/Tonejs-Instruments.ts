@@ -5,29 +5,7 @@
  * https://github.com/nbrosowsky/tonejs-instruments
  */
 import { Sampler } from 'tone'
-
-export const instrumentList = [
-  'bass-electric',
-  'bassoon',
-  'cello',
-  'clarinet',
-  'contrabass',
-  'flute',
-  'french-horn',
-  'guitar-acoustic',
-  'guitar-electric',
-  'guitar-nylon',
-  'harmonium',
-  'harp',
-  'organ',
-  'piano',
-  'saxophone',
-  'trombone',
-  'trumpet',
-  'tuba',
-  'violin',
-  'xylophone',
-]
+import { instrumentList } from './settings'
 
 interface SampleLibrarySettingsProto {
   minify?: boolean
