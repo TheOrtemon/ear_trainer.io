@@ -1,7 +1,7 @@
-import type { PolySynth, BaseContext, Transport, Part, Sampler } from 'tone'
+import type { PolySynth, BaseContext, Transport, Part, Sampler, getDestination } from 'tone'
 import type { SampleLibrary } from '@/services/Tonejs-Instruments'
 
-type PartElement = { time: string; chord: Array<string> }
+export type PartElement = { time: string; chord: Array<string> }
 type Instrument = PolySynth | Sampler
 type InstrumentMap = Record<string, Instrument>
 
@@ -13,6 +13,7 @@ interface ToneImports {
   Part: typeof Part
   Sampler: typeof Sampler
   SampleLibrary: typeof SampleLibrary
+  getDestination: typeof getDestination
 }
 
 interface SampleLibraryContainer {
@@ -25,7 +26,9 @@ export const loadedInstruments: InstrumentMap = {}
 
 export async function getToneLib(): Promise<ToneImports> {
   if (toneImportsContainer === undefined) {
-    const { context, start, PolySynth, Transport, Part, Sampler } = await import('tone')
+    const { context, start, PolySynth, Transport, Part, Sampler, getDestination } = await import(
+      'tone'
+    )
     const { SampleLibrary } = await import('@/services/Tonejs-Instruments')
     toneImportsContainer = {
       context,
@@ -34,6 +37,7 @@ export async function getToneLib(): Promise<ToneImports> {
       Transport,
       Part,
       Sampler,
+      getDestination,
       SampleLibrary,
     }
   }
@@ -41,10 +45,10 @@ export async function getToneLib(): Promise<ToneImports> {
 }
 
 export async function playChords(chordScore: PartElement[], instrumentName: string) {
-  const { context, start, Transport, Part } = await import('tone')
+  const { context, start, Transport, Part, getDestination } = await getToneLib()
   if (context.state !== 'running') {
     context.resume()
-    start()
+    await start()
   }
   let instrument: Instrument | undefined = loadedInstruments[instrumentName]
 
@@ -53,9 +57,9 @@ export async function playChords(chordScore: PartElement[], instrumentName: stri
     loadedInstruments[instrumentName] = instrument
   }
 
+  getDestination().volume.value = -6
   const chordDuration = '4n'
 
-  instrument.releaseAll()
   Transport.stop()
   Transport.cancel()
   const part = new Part((time, value) => {
@@ -64,10 +68,7 @@ export async function playChords(chordScore: PartElement[], instrumentName: stri
     }
     instrument.triggerAttackRelease(value.chord, chordDuration, time)
   }, chordScore)
-  part.stop()
-  await start()
-  part.start(0)
-  Transport.position = 0
+  part.start()
   Transport.start()
 }
 

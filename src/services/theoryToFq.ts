@@ -1,6 +1,5 @@
-import { note as newNote, chord as newChord, interval as newInterval } from 'teoria'
-import type { Chord } from 'teoria'
-import type { Ref } from 'vue'
+import { note as newNote, chord as newChord, interval as newInterval, type Chord } from 'teoria'
+import type { PartElement } from '@/services/fqToSound'
 
 interface ChordInterval {
   interval: string
@@ -71,10 +70,6 @@ export const relativeChordMap: RelativeChordMap = {
 
 export const chromaticScaleNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
-export function getChord(chordSymbol: string): Chord {
-  return newChord(chordSymbol)
-}
-
 export function transposeChord(tonicChord: Chord, secondChord: Chord): Chord {
   const tonicNote = tonicChord.root
   if (tonicNote.fq() < secondChord.root.fq()) {
@@ -89,8 +84,23 @@ export function getChordTones(chord: Chord): string[] {
   return notesStringified
 }
 
-export function notationToChord(tonic: Ref<string>, romanNotation: string) {
+export function notationToChord(tonic: string, romanNotation: string) {
   const { interval, chordQuality } = relativeChordMap[romanNotation]
-  const intervalTonic = newNote(tonic.value).interval(interval)
+  const intervalTonic = newNote(tonic).interval(interval)
   return intervalTonic.chord(chordQuality).name
+}
+
+export function chordsToPart(
+  tonicChord: Chord,
+  secondChordName: string,
+  inversion: number,
+): PartElement[] {
+  const secondChord = newChord(secondChordName)
+  const transposedSecondChord = transposeChord(tonicChord, secondChord)
+  const inversedSecondChord = inverseChord(transposedSecondChord, inversion)
+  const chordsToPlay = [tonicChord, inversedSecondChord]
+  const chordArpeggios = chordsToPlay.map(getChordTones)
+  return chordArpeggios.map((chord, id) => {
+    return { time: `0:${id * 2}`, chord: chord }
+  })
 }

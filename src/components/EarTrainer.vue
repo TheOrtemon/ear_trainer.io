@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h1 class="flex justify-center scroll-m-20 text-6xl font-bold tracking-tight">Ear Trainer</h1>
+    <h1 class="flex justify-center scroll-m-20 text-6xl font-bold tracking-tight pb-2">
+      Ear Trainer
+    </h1>
     <div v-if="!isTraining">
       <div class="flex justify-center items-center my-1">
         <Button variant="outline" class="focus:ring-transparent" @click="replayChords()">
@@ -15,7 +17,7 @@
             'correct-answer': chord === secondChordRomanNotation && hasBeenSelected.has(chord),
             'wrong-answer': chord !== secondChordRomanNotation && hasBeenSelected.has(chord),
           }"
-          :disabled="firstTry"
+          :disabled="isfirstTry"
           @click="checkGuess(chord)"
         >
           {{ chord }}
@@ -34,7 +36,7 @@
         </ChordButton>
       </div>
     </div>
-    <Select v-model="currrentChordsOption" @update:model-value="firstTry = true">
+    <Select v-model="currrentChordsOption" @update:model-value="isfirstTry = true">
       <SelectTrigger class="my-2">
         <SelectValue />
       </SelectTrigger>
@@ -107,11 +109,8 @@ import { chordsOptions, instrumentList } from '@/services/settings'
 import {
   relativeChordMap,
   chromaticScaleNotes,
-  getChordTones,
   notationToChord,
-  getChord,
-  inverseChord,
-  transposeChord,
+  chordsToPart,
 } from '@/services/theoryToFq'
 import { playChords, createInstrument, loadedInstruments, getToneLib } from '@/services/fqToSound'
 import { chord as newChord } from 'teoria'
@@ -127,7 +126,9 @@ const tonicChordName = computed(
 const tonicChord = computed(() => newChord(tonicChordName.value))
 
 const secondChordRomanNotation = ref('')
-const correctChordName = computed(() => notationToChord(tonicNote, secondChordRomanNotation.value))
+const correctChordName = computed(() =>
+  notationToChord(tonicNote.value, secondChordRomanNotation.value),
+)
 
 const inversion = ref(0)
 const inversions = [0, 1, 2, 3]
@@ -136,7 +137,7 @@ const chordScale = computed(() => chordsOptions[currrentChordsOption.value])
 
 const hasBeenSelected = ref(new Set())
 
-const firstTry = ref(true)
+const isfirstTry = ref(true)
 const isTraining = ref(false)
 const isLoading = ref(false)
 const isHardDifficulty = ref(false)
@@ -147,7 +148,7 @@ function newTonic() {
 
 function newTonicTraining() {
   newTonic()
-  firstTry.value = true
+  isfirstTry.value = true
 }
 
 function newChordPair() {
@@ -159,26 +160,19 @@ function newChordPair() {
   newTonic()
   secondChordRomanNotation.value =
     chordScale.value[Math.floor(Math.random() * chordScale.value.length)]
-  firstTry.value = false
+  isfirstTry.value = false
 }
 
 async function replayChords(chordToPlay?: string): Promise<void> {
-  if (firstTry.value && !isTraining.value) {
+  if (isfirstTry.value && !isTraining.value) {
     isLoading.value = true
     newChordPair()
     await getToneLib()
     isLoading.value = false
   }
   const secondChordName = chordToPlay || correctChordName.value
-  const secondChord = getChord(secondChordName)
-  const transposedSecondChord = transposeChord(tonicChord.value, secondChord)
-  const inversedSecondChord = inverseChord(transposedSecondChord, inversion.value)
-  const chordsToPlay = [tonicChord.value, inversedSecondChord]
-  const chordArpeggios = chordsToPlay.map(getChordTones)
-  const mapped = chordArpeggios.map((chord, id) => {
-    return { time: `0:${id * 2}`, chord: chord }
-  })
-  playChords(mapped, currentInstrumentName.value)
+  const chordsPart = chordsToPart(tonicChord.value, secondChordName, inversion.value)
+  playChords(chordsPart, currentInstrumentName.value)
 }
 
 function checkGuess(userGuess: string) {
@@ -193,7 +187,7 @@ function checkGuess(userGuess: string) {
 }
 
 function practiseChord(chord: string) {
-  replayChords(notationToChord(tonicNote, chord))
+  replayChords(notationToChord(tonicNote.value, chord))
 }
 
 async function onInstrumentChange(instrumentName: string) {
