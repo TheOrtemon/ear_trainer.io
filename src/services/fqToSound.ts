@@ -23,7 +23,7 @@ let toneImportsContainer: ToneImports | undefined
 const samplerLibraryContainer: SampleLibraryContainer = {}
 export const loadedInstruments: InstrumentMap = {}
 
-async function getToneLib(): Promise<ToneImports> {
+export async function getToneLib(): Promise<ToneImports> {
   if (toneImportsContainer === undefined) {
     const { context, start, PolySynth, Transport, Part, Sampler } = await import('tone')
     const { SampleLibrary } = await import('@/services/Tonejs-Instruments')

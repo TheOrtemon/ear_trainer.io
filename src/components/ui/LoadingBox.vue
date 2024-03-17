@@ -18,7 +18,7 @@ import Spinner from '@/components/ui/Spinner.vue'
           Loading...
         </AlertDialogTitle>
         <AlertDialogDescription class="mt-1">
-          The sampled instrument is being loaded to your local storage.
+          The instrument is being loaded to your local storage.
         </AlertDialogDescription>
       </AlertDialogHeader>
     </AlertDialogContent>

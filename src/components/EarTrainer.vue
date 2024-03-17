@@ -113,7 +113,7 @@ import {
   inverseChord,
   transposeChord,
 } from '@/services/theoryToFq'
-import { playChords, createInstrument, loadedInstruments } from '@/services/fqToSound'
+import { playChords, createInstrument, loadedInstruments, getToneLib } from '@/services/fqToSound'
 import { chord as newChord } from 'teoria'
 
 const extendedInstrumentList = instrumentList.concat(['synth'])
@@ -162,9 +162,12 @@ function newChordPair() {
   firstTry.value = false
 }
 
-function replayChords(chordToPlay?: string): void {
+async function replayChords(chordToPlay?: string): Promise<void> {
   if (firstTry.value && !isTraining.value) {
+    isLoading.value = true
     newChordPair()
+    await getToneLib()
+    isLoading.value = false
   }
   const secondChordName = chordToPlay || correctChordName.value
   const secondChord = getChord(secondChordName)
