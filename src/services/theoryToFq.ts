@@ -84,7 +84,7 @@ export function getChordTones(chord: Chord): string[] {
   return notesStringified
 }
 
-export function notationToChord(tonic: string, romanNotation: string) {
+export function notationToChordName(tonic: string, romanNotation: string): string {
   const { interval, chordQuality } = relativeChordMap[romanNotation]
   const intervalTonic = newNote(tonic).interval(interval)
   return intervalTonic.chord(chordQuality).name
@@ -103,4 +103,8 @@ export function chordsToPart(
   return chordArpeggios.map((chord, id) => {
     return { time: `0:${id * 2}`, chord: chord }
   })
+}
+
+export function newTonic(): string {
+  return chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)]
 }

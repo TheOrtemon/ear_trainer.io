@@ -18,6 +18,7 @@
             'wrong-answer': chord !== secondChordRomanNotation && hasBeenSelected.has(chord),
           }"
           :disabled="isfirstTry"
+          :fraction="guessedInversionsFractions[chord]"
           @click="checkGuess(chord)"
         >
           {{ chord }}
@@ -89,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import { Button } from './ui/button'
 import ChordButton from './ui/ChordButton.vue'
 import {
@@ -108,9 +109,9 @@ import LoadingBox from './ui/LoadingBox.vue'
 import { chordsOptions, instrumentList } from '@/services/settings'
 import {
   relativeChordMap,
-  chromaticScaleNotes,
-  notationToChord,
+  notationToChordName,
   chordsToPart,
+  newTonic,
 } from '@/services/theoryToFq'
 import { playChords, createInstrument, loadedInstruments, getToneLib } from '@/services/fqToSound'
 import { chord as newChord } from 'teoria'
@@ -119,6 +120,8 @@ const extendedInstrumentList = instrumentList.concat(['synth'])
 const currentInstrumentName = ref('synth')
 
 const currrentChordsOption = ref('major')
+const chordScale = computed(() => chordsOptions[currrentChordsOption.value])
+
 const tonicNote = ref('C')
 const tonicChordName = computed(
   () => `${tonicNote.value}${relativeChordMap[chordScale.value[0]].chordQuality}`,
@@ -126,14 +129,31 @@ const tonicChordName = computed(
 const tonicChord = computed(() => newChord(tonicChordName.value))
 
 const secondChordRomanNotation = ref('')
-const correctChordName = computed(() =>
-  notationToChord(tonicNote.value, secondChordRomanNotation.value),
+const secondChordName = computed(() =>
+  notationToChordName(tonicNote.value, secondChordRomanNotation.value),
 )
 
 const inversion = ref(0)
 const inversions = [0, 1, 2, 3]
 
-const chordScale = computed(() => chordsOptions[currrentChordsOption.value])
+interface InversionMap {
+  [key: number]: boolean | undefined
+}
+
+const guessedInversions: Ref<Record<string, InversionMap>> = ref(
+  Object.fromEntries(chordScale.value.map((chord) => [chord, { 0: false, 3: false }])),
+)
+
+const guessedInversionsFractions: Ref<Record<string, number>> = computed(() => {
+  return Object.fromEntries(
+    Object.entries(guessedInversions.value).map(([key, inversionMap]) => {
+      const correctNum = Object.values(inversionMap).reduce((acc, curVal) => acc + curVal)
+      const keysNum = Object.keys(inversionMap).length
+      const fraction = correctNum / keysNum
+      return [key, fraction]
+    }),
+  )
+})
 
 const hasBeenSelected = ref(new Set())
 
@@ -142,12 +162,8 @@ const isTraining = ref(false)
 const isLoading = ref(false)
 const isHardDifficulty = ref(false)
 
-function newTonic() {
-  tonicNote.value = chromaticScaleNotes[Math.floor(Math.random() * chromaticScaleNotes.length)]
-}
-
 function newTonicTraining() {
-  newTonic()
+  tonicNote.value = newTonic()
   isfirstTry.value = true
 }
 
@@ -157,7 +173,7 @@ function newChordPair() {
   } else {
     inversion.value = Math.random() > 0.5 ? 0 : 3
   }
-  newTonic()
+  tonicNote.value = newTonic()
   secondChordRomanNotation.value =
     chordScale.value[Math.floor(Math.random() * chordScale.value.length)]
   isfirstTry.value = false
@@ -170,14 +186,19 @@ async function replayChords(chordToPlay?: string): Promise<void> {
     await getToneLib()
     isLoading.value = false
   }
-  const secondChordName = chordToPlay || correctChordName.value
-  const chordsPart = chordsToPart(tonicChord.value, secondChordName, inversion.value)
+  const comparedChordName = chordToPlay || secondChordName.value
+  const chordsPart = chordsToPart(tonicChord.value, comparedChordName, inversion.value)
   playChords(chordsPart, currentInstrumentName.value)
 }
 
 function checkGuess(userGuess: string) {
   hasBeenSelected.value.add(userGuess)
-  if (userGuess === secondChordRomanNotation.value) {
+  const resFlag = userGuess === secondChordRomanNotation.value
+  guessedInversions.value[secondChordRomanNotation.value][inversion.value] = false
+  if (resFlag) {
+    if (hasBeenSelected.value.size === 1) {
+      guessedInversions.value[secondChordRomanNotation.value][inversion.value] = true
+    }
     setTimeout(() => {
       hasBeenSelected.value.clear()
       newChordPair()
@@ -187,7 +208,7 @@ function checkGuess(userGuess: string) {
 }
 
 function practiseChord(chord: string) {
-  replayChords(notationToChord(tonicNote.value, chord))
+  replayChords(notationToChordName(tonicNote.value, chord))
 }
 
 async function onInstrumentChange(instrumentName: string) {
@@ -198,8 +219,28 @@ async function onInstrumentChange(instrumentName: string) {
   }
 }
 
+function inversionGuessesBasis() {
+  if (isHardDifficulty.value) {
+    return { 0: false, 1: false, 2: false, 3: false }
+  } else {
+    return { 0: false, 3: false }
+  }
+}
+
+function dropInversionGuesses() {
+  guessedInversions.value = Object.fromEntries(
+    chordScale.value.map((chord) => [chord, inversionGuessesBasis()]),
+  )
+}
+
 watch(currentInstrumentName, onInstrumentChange)
-watch(isHardDifficulty, () => (inversion.value = 0))
+watch(isHardDifficulty, () => {
+  inversion.value = 0
+  dropInversionGuesses()
+})
+watch(chordScale, () => {
+  dropInversionGuesses()
+})
 </script>
 
 <style scoped>
