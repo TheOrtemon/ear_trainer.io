@@ -194,11 +194,9 @@ async function replayChords(chordToPlay?: string): Promise<void> {
 function checkGuess(userGuess: string) {
   hasBeenSelected.value.add(userGuess)
   const resFlag = userGuess === secondChordRomanNotation.value
-  guessedInversions.value[secondChordRomanNotation.value][inversion.value] = false
   if (resFlag) {
-    if (hasBeenSelected.value.size === 1) {
-      guessedInversions.value[secondChordRomanNotation.value][inversion.value] = true
-    }
+    const guessedWithOneTry = hasBeenSelected.value.size === 1
+    guessedInversions.value[secondChordRomanNotation.value][inversion.value] = guessedWithOneTry
     setTimeout(() => {
       hasBeenSelected.value.clear()
       newChordPair()
