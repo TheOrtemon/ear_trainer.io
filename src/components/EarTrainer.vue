@@ -116,6 +116,11 @@ import {
 import { playChords, createInstrument, loadedInstruments, getToneLib } from '@/services/fqToSound'
 import { chord as newChord } from 'teoria'
 
+const isfirstTry = ref(true)
+const isTraining = ref(false)
+const isLoading = ref(false)
+const isHardDifficulty = ref(false)
+
 const extendedInstrumentList = instrumentList.concat(['synth'])
 const currentInstrumentName = ref('synth')
 
@@ -134,14 +139,19 @@ const secondChordName = computed(() =>
 )
 
 const inversion = ref(0)
-const inversions = [0, 1, 2, 3]
+const inversions = computed(() => {
+  const notesNum = tonicChord.value.voicing().length
+  return Array(notesNum + 1)
+    .fill(null)
+    .map((_, i) => i)
+})
 
 interface InversionMap {
   [key: number]: boolean | undefined
 }
 
 const guessedInversions: Ref<Record<string, InversionMap>> = ref(
-  Object.fromEntries(chordScale.value.map((chord) => [chord, { 0: false, 3: false }])),
+  Object.fromEntries(chordScale.value.map((chord) => [chord, inversionGuessesBasis()])),
 )
 
 const guessedInversionsFractions: Ref<Record<string, number>> = computed(() => {
@@ -156,11 +166,6 @@ const guessedInversionsFractions: Ref<Record<string, number>> = computed(() => {
 })
 
 const hasBeenSelected = ref(new Set())
-
-const isfirstTry = ref(true)
-const isTraining = ref(false)
-const isLoading = ref(false)
-const isHardDifficulty = ref(false)
 
 function newTonicTraining() {
   tonicNote.value = newTonic()
@@ -219,9 +224,9 @@ async function onInstrumentChange(instrumentName: string) {
 
 function inversionGuessesBasis() {
   if (isHardDifficulty.value) {
-    return { 0: false, 1: false, 2: false, 3: false }
+    return Object.fromEntries(inversions.value.map((inversion) => [inversion, false]))
   } else {
-    return { 0: false, 3: false }
+    return { 0: false, [inversions.value[inversions.value.length - 1]]: false }
   }
 }
 

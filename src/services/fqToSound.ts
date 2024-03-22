@@ -57,7 +57,7 @@ export async function playChords(chordScore: PartElement[], instrumentName: stri
     loadedInstruments[instrumentName] = instrument
   }
 
-  getDestination().volume.value = -6
+  getDestination().volume.value = -8
   const chordDuration = '4n'
 
   Transport.stop()
