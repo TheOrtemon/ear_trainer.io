@@ -153,6 +153,13 @@ interface InversionMap {
 const guessedInversions: Ref<Record<string, InversionMap>> = ref(
   Object.fromEntries(chordScale.value.map((chord) => [chord, inversionGuessesBasis()])),
 )
+function getDefaultWeightedProbsMap() {
+  const defaultProbs = Object.fromEntries(
+    Object.keys(inversionGuessesBasis()).map((key: string) => [key, 1]),
+  )
+  return Object.fromEntries(chordScale.value.map((chord) => [chord, { ...defaultProbs }]))
+}
+const weightedProbsMap = ref(getDefaultWeightedProbsMap())
 
 const guessedInversionsFractions: Ref<Record<string, number>> = computed(() => {
   return Object.fromEntries(
@@ -173,15 +180,30 @@ function newTonicTraining() {
 }
 
 function newChordPair() {
-  if (isHardDifficulty.value) {
-    inversion.value = Math.floor(Math.random() * 4)
-  } else {
-    inversion.value = Math.random() > 0.5 ? 0 : 3
-  }
   tonicNote.value = newTonic()
-  secondChordRomanNotation.value =
-    chordScale.value[Math.floor(Math.random() * chordScale.value.length)]
-  isfirstTry.value = false
+  const chordProbsSum = Object.values(weightedProbsMap.value)
+    .map((record) => Object.values(record).reduce((cv, a) => cv + a, 0))
+    .reduce((cv, a) => cv + a, 0)
+  const randChordKoef = Math.random() * chordProbsSum
+  let randChordAcum = 0
+  for (const [key, value] of Object.entries(weightedProbsMap.value)) {
+    const invsProbsSum = Object.values(value).reduce((cv, a) => cv + a, 0)
+    randChordAcum += invsProbsSum
+    if (randChordKoef < randChordAcum) {
+      secondChordRomanNotation.value = key
+      const randInvKoef = Math.random() * invsProbsSum
+      let randInvAcum = 0
+      for (const [curInv, invProbs] of Object.entries(value)) {
+        randInvAcum += invProbs
+        if (randInvKoef < randInvAcum) {
+          inversion.value = Number(curInv)
+          isfirstTry.value = false
+          return
+        }
+      }
+    }
+  }
+  throw new Error('Unreachable')
 }
 
 async function replayChords(chordToPlay?: string): Promise<void> {
@@ -202,6 +224,12 @@ function checkGuess(userGuess: string) {
   if (resFlag) {
     const guessedWithOneTry = hasBeenSelected.value.size === 1
     guessedInversions.value[secondChordRomanNotation.value][inversion.value] = guessedWithOneTry
+    const changeRate = 1.8
+    if (guessedWithOneTry) {
+      weightedProbsMap.value[secondChordRomanNotation.value][inversion.value] /= changeRate
+    } else {
+      weightedProbsMap.value[secondChordRomanNotation.value][inversion.value] *= changeRate
+    }
     setTimeout(() => {
       hasBeenSelected.value.clear()
       newChordPair()
@@ -222,18 +250,25 @@ async function onInstrumentChange(instrumentName: string) {
   }
 }
 
-function inversionGuessesBasis() {
+function inversionGuessesBasis(): Record<number, boolean> {
+  let protoBasis: [number, boolean][]
   if (isHardDifficulty.value) {
-    return Object.fromEntries(inversions.value.map((inversion) => [inversion, false]))
+    protoBasis = inversions.value.map((inversion) => [inversion, false])
   } else {
-    return { 0: false, [inversions.value[inversions.value.length - 1]]: false }
+    const lastInversion = inversions.value[inversions.value.length - 1]
+    protoBasis = [
+      [0, false],
+      [lastInversion, false],
+    ]
   }
+  return Object.fromEntries(protoBasis)
 }
 
 function dropInversionGuesses() {
   guessedInversions.value = Object.fromEntries(
     chordScale.value.map((chord) => [chord, inversionGuessesBasis()]),
   )
+  weightedProbsMap.value = getDefaultWeightedProbsMap()
 }
 
 watch(currentInstrumentName, onInstrumentChange)
