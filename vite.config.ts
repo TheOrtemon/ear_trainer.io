@@ -15,6 +15,11 @@ export default defineConfig({
     },
   },
   plugins: [vue()],
+  server: {
+    watch: {
+      usePolling: true,
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

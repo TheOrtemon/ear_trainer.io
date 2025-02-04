@@ -80,6 +80,7 @@ export function transposeChord(tonicChord: Chord, secondChord: Chord): Chord {
 
 export function getChordTones(chord: Chord): string[] {
   const chordNotes = chord.notes()
+  chordNotes.sort((a, b) => a.fq() - b.fq())
   const notesStringified = chordNotes.map((note) => note.toString())
   return notesStringified
 }

@@ -13,10 +13,7 @@
         <ChordButton
           v-for="chord in chordScale"
           :key="chord"
-          :class="{
-            'correct-answer': chord === secondChordRomanNotation && hasBeenSelected.has(chord),
-            'wrong-answer': chord !== secondChordRomanNotation && hasBeenSelected.has(chord),
-          }"
+          :class="getChordButtonClass(chord)"
           :disabled="isfirstTry"
           :fraction="guessedInversionsFractions[chord]"
           @click="checkGuess(chord)"
@@ -85,14 +82,12 @@
       </div>
     </div>
   </div>
-
   <LoadingBox v-model:open="isLoading" />
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, type Ref } from 'vue'
-import { Button } from './ui/button'
-import ChordButton from './ui/ChordButton.vue'
+import { Button } from '@/components/ui/button'
+import ChordButton from '@/components/ui/ChordButton.vue'
 import {
   Select,
   SelectContent,
@@ -101,11 +96,11 @@ import {
   SelectTrigger,
   SelectValue,
   SelectLabel,
-} from './ui/select'
-import { Switch } from './ui/switch'
-import { Label } from './ui/label'
-import SoundIcon from './icons/SoundIcon.vue'
-import LoadingBox from './ui/LoadingBox.vue'
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import LoadingBox from '@/components/ui/LoadingBox.vue'
+import SoundIcon from '@/components/icons/SoundIcon.vue'
 import { chordsOptions, instrumentList } from '@/services/settings'
 import {
   relativeChordMap,
@@ -114,6 +109,7 @@ import {
   newTonic,
 } from '@/services/theoryToFq'
 import { playChords, createInstrument, loadedInstruments, getToneLib } from '@/services/fqToSound'
+import { computed, ref, watch, type Ref } from 'vue'
 import { chord as newChord } from 'teoria'
 
 const isfirstTry = ref(true)
@@ -269,6 +265,13 @@ function dropInversionGuesses() {
     chordScale.value.map((chord) => [chord, inversionGuessesBasis()]),
   )
   weightedProbsMap.value = getDefaultWeightedProbsMap()
+}
+
+function getChordButtonClass(chord: string) {
+  return {
+    'correct-answer': chord === secondChordRomanNotation.value && hasBeenSelected.value.has(chord),
+    'wrong-answer': chord !== secondChordRomanNotation.value && hasBeenSelected.value.has(chord),
+  }
 }
 
 watch(currentInstrumentName, onInstrumentChange)
