@@ -14,7 +14,7 @@ defineProps({
   <Button
     variant="secondary"
     rounded="yes"
-    size="m"
+    size="sm"
     class="mx-2 mt-2 w-14 focus:ring-transparent relative border border-gray-300"
   >
     <div

@@ -15,7 +15,7 @@ const percent = computed(() =>
 <template>
   <div
     id="battery-body"
-    class="relative w-8 h-5 border rounded-sm overflow-hidden border-green-700 bg-green-50"
+    class="relative w-6 h-5 border rounded-sm overflow-hidden border-green-700 bg-green-50"
   >
     <div id="battery-charge" class="h-full bg-green-500"></div>
   </div>

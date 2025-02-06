@@ -9,7 +9,7 @@
           <SoundIcon />
         </Button>
       </div>
-      <div class="my-2">
+      <div class="my-2 grid grid-cols-4 gap-4 md:grid-cols-7">
         <ChordButton
           v-for="chord in chordScale"
           :key="chord"
@@ -28,7 +28,7 @@
           Change the tonic
         </Button>
       </div>
-      <div class="my-2">
+      <div class="my-2 grid grid-cols-4 gap-4 md:grid-cols-7">
         <ChordButton v-for="chord in chordScale" :key="chord" @click="practiseChord(chord)">
           {{ chord }}
         </ChordButton>
